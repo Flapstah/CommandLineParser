@@ -5,6 +5,15 @@
 #include <functional>
 #include <limits>
 
+enum ELogVerbosity
+{
+	eLB_NORMAL,
+	eLB_VERBOSE,
+	eLB_VERY_VERBOSE,
+};
+
+#define LOG_VERBOSITY eLB_VERY_VERBOSE
+
 // TODO: check for abbreviation and name collisions when adding parameters
 // TODO: fix parameter storage to own the parameter memory (std::move) and return a pointer to the stored parameter (for things like m_stopProcessing)
 namespace CommandLine
@@ -30,7 +39,9 @@ namespace CommandLine
 
 			virtual ~CParameter()
 			{
-				//std::cout << "CParameter [" << GetName() << "] destructed" << std::endl;
+#if (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
+				std::cout << "CParameter [" << GetName() << "] destructed" << std::endl;
+#endif // (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
 			};
 
 			inline void SetIndex(uint32 index) { m_index = index; }
@@ -51,7 +62,9 @@ namespace CommandLine
 				, m_flags(flags)
 				, m_index(eC_INVALID_INDEX)
 			{
-				//std::cout << "CParameter [" << GetName() << "] constructed" << std::endl;
+#if (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
+				std::cout << "CParameter [" << GetName() << "] constructed" << std::endl;
+#endif // (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
 			}
 
 		private:
@@ -73,12 +86,16 @@ namespace CommandLine
 				, m_recurrence(0)
 				, m_value(false)
 			{
-				//std::cout << "CSwitch [" << GetName() << "] constructed" << std::endl;
+#if (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
+				std::cout << "CSwitch [" << GetName() << "] constructed" << std::endl;
+#endif // (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
 			}
 
 			virtual ~CSwitch()
 			{
-				//std::cout << "CSwitch [" << GetName() << "] destructed" << std::endl;
+#if (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
+				std::cout << "CSwitch [" << GetName() << "] destructed" << std::endl;
+#endif // (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
 			}
 
 			inline operator bool()
@@ -90,7 +107,9 @@ namespace CommandLine
 			{
 				if (strcmp(GetName(), arg) == 0)
 				{
+#if (LOG_VERBOSITY >= eLB_VERBOSE)
 					std::cout << "Found [" << GetName() << "]" << std::endl;
+#endif // (LOG_VERBOSITY >= eLB_VERBOSE)
 					Register(index);
 					return true;
 				}
@@ -103,7 +122,9 @@ namespace CommandLine
 				// TODO: utf-8
 				if (GetAbbr()[0] == arg)
 				{
+#if (LOG_VERBOSITY >= eLB_VERBOSE)
 					std::cout << "Found [" << GetAbbr() << "] (" << GetName() << ")" << std::endl;
+#endif // (LOG_VERBOSITY >= eLB_VERBOSE)
 					Register(index);
 					return true;
 				}
@@ -141,7 +162,9 @@ namespace CommandLine
 			, m_argi(0)
 			, m_argf(0)
 		{
-			//std::cout << "CParser constructed" << std::endl;
+#if (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
+			std::cout << "CParser constructed" << std::endl;
+#endif // (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
 
 			m_parameter.reserve(32);
 			m_parameter.push_back(&m_stopParsing);
@@ -151,7 +174,9 @@ namespace CommandLine
 
 		~CParser()
 		{
-			//std::cout << "CParser destructed" << std::endl;
+#if (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
+			std::cout << "CParser destructed" << std::endl;
+#endif // (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
 		}
 
 		bool Parse(void)
