@@ -1,0 +1,7 @@
+*~
+*.swp
+*.db
+*.opendb
+.vs/
+Debug/
+ipch/
