@@ -51,58 +51,7 @@ namespace CommandLine
 			inline const char* GetHelp(void) const { return m_help; }
 			inline uint32 GetFlags(void) const { return m_flags; }
 
-			virtual bool ParseName(const char* arg, const uint32 index) = 0;
-			virtual bool ParseAbbr(char arg, const uint32 index) = 0;
-
-		protected:
-			CParameter(const char* name, char abbr, const char* help, uint32 flags)
-				: m_name(name)
-				, m_abbr(abbr)
-				, m_help(help)
-				, m_flags(flags)
-				, m_index(eC_INVALID_INDEX)
-			{
-#if (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
-				std::cout << "CParameter [" << GetName() << "] constructed" << std::endl;
-#endif // (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
-			}
-
-		private:
-			const char* m_name;
-			const char m_abbr;
-			const char* m_help;
-			uint32 m_flags;
-			uint32 m_index; // index into original command line
-		};
-
-	protected:
-		class CSwitch : public CParameter
-		{
-		public:
-			CSwitch(const char* name, char abbr, const char* help, uint32 flags, callback function)
-				: CParameter(name, abbr, help, flags | CParameter::eF_SWITCH)
-				, m_function(function)
-				, m_recurrence(0)
-				, m_value(false)
-			{
-#if (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
-				std::cout << "CSwitch [" << GetName() << "] constructed" << std::endl;
-#endif // (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
-			}
-
-			virtual ~CSwitch()
-			{
-#if (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
-				std::cout << "CSwitch [" << GetName() << "] destructed" << std::endl;
-#endif // (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
-			}
-
-			inline operator bool() const
-			{
-				return m_value;
-			}
-
-			virtual bool ParseName(const char* arg, const uint32 index) override
+			virtual bool ParseName(const char* arg, const uint32 index)
 			{
 				if (strcmp(GetName(), arg) == 0)
 				{
@@ -116,7 +65,7 @@ namespace CommandLine
 				return false;
 			}
 
-			virtual bool ParseAbbr(char arg, const uint32 index) override
+			virtual bool ParseAbbr(char arg, const uint32 index)
 			{
 				// TODO: utf-8
 				if (GetAbbr() == arg)
@@ -132,21 +81,96 @@ namespace CommandLine
 			}
 
 		protected:
-		private:
-			callback m_function;
-			uint32 m_recurrence;
-			bool m_value;
+			CParameter(const char* name, char abbr, const char* help, uint32 flags, callback function)
+				: m_function(function)
+				, m_recurrence(0)
+				, m_name(name)
+				, m_help(help)
+				, m_flags(flags)
+				, m_index(eC_INVALID_INDEX)
+				, m_abbr(abbr)
+			{
+#if (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
+				std::cout << "CParameter [" << GetName() << "] constructed" << std::endl;
+#endif // (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
+			}
 
 			inline void Register(const uint32 index)
 			{
 				SetIndex(index);
 				++m_recurrence;
-				m_value = true;
+				m_flags |= CParameter::eF_FOUND;
 				if (m_function)
 				{
 					m_function(this);
 				}
 			}
+
+		protected:
+			callback m_function;
+			uint32 m_recurrence;
+
+		private:
+			const char* m_name;
+			const char* m_help;
+			uint32 m_flags;
+			uint32 m_index; // index into original command line
+			const char m_abbr;
+		};
+
+	protected:
+		template<typename _T>
+		class CArgument : public CParameter
+		{
+		public:
+			CArgument(const char* name, char abbr, const char* help, uint32 flags, callback function)
+				: CParameter(name, abbr, help, flags, function)
+			{
+#if (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
+				std::cout << "CArgument [" << GetName() << "] constructed" << std::endl;
+#endif // (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
+			}
+
+			virtual ~CArgument()
+			{
+#if (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
+				std::cout << "CArgument [" << GetName() << "] destructed" << std::endl;
+#endif // (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
+			}
+
+		protected:
+
+		private:
+			std::vector<_T> m_values;
+		};
+
+		// template specialisation for bool (switch)
+		template<>
+		class CArgument<bool> : public CParameter
+		{
+		public:
+			CArgument(const char* name, char abbr, const char* help, uint32 flags, callback function)
+				: CParameter(name, abbr, help, flags | CParameter::eF_SWITCH, function)
+				, m_value(false)
+			{
+#if (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
+				std::cout << "CArgument<bool> [" << GetName() << "] constructed (switch)" << std::endl;
+#endif // (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
+			}
+
+			virtual ~CArgument()
+			{
+#if (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
+				std::cout << "CArgument<bool> [" << GetName() << "] destructed (switch)" << std::endl;
+#endif // (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
+			}
+
+			void Register(const uint32 index) { m_value = true; __super::Register(index); }
+
+			operator bool() const { return m_value; }
+
+		private:
+			bool m_value;
 		};
 
 	public:
@@ -208,13 +232,13 @@ namespace CommandLine
 			return duplicate;
 		}
 
-		bool AddSwitch(const char* name, char abbr, const char* help = "", uint32 flags = 0, CSwitch::callback function = nullptr)
+		bool AddSwitch(const char* name, char abbr, const char* help = "", uint32 flags = 0, CParameter::callback function = nullptr)
 		{
 			bool duplicate = IsDuplicate(name, abbr);
 
 			if (!duplicate)
 			{
-				m_parameter.push_back(new CSwitch(name, abbr, help, flags, function));
+				m_parameter.push_back(new CArgument<bool>(name, abbr, help, flags, function));
 			}
 
 			return !duplicate;
@@ -225,7 +249,7 @@ namespace CommandLine
 			const char* arg = nullptr;
 			bool parsed = false;
 
-			const CSwitch* pStopParsing = GetStopParsingSwitch();
+			const CArgument<bool>* pStopParsing = GetStopParsingSwitch();
 			while (arg = GetNextArgument())
 			{
 				if (IsFlagArgument())
@@ -314,7 +338,7 @@ namespace CommandLine
 			return true;
 		}
 
-		const CSwitch* GetStopParsingSwitch(void) const { return static_cast<CSwitch*>(m_parameter[0]); }
+		const CArgument<bool>* GetStopParsingSwitch(void) const { return static_cast<CArgument<bool>*>(m_parameter[0]); }
 
 	private:
 		std::vector<uint32> m_unnamed; // stores indices of unnamed arguments
