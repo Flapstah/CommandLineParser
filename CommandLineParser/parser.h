@@ -14,8 +14,6 @@ enum ELogVerbosity
 
 #define LOG_VERBOSITY eLB_VERY_VERBOSE
 
-// TODO: check for abbreviation and name collisions when adding parameters
-// TODO: fix parameter storage to own the parameter memory (std::move) and return a pointer to the stored parameter (for things like m_stopProcessing)
 namespace CommandLine
 {
 	class CParser
@@ -24,6 +22,8 @@ namespace CommandLine
 		class CParameter
 		{
 		public:
+			typedef std::function<void(CParameter*)> callback;
+
 			enum eFlags
 			{
 				eF_REQUIRED = 1 << 0,					// Failure to provide this argument/switch is an error
@@ -45,11 +45,11 @@ namespace CommandLine
 			};
 
 			inline void SetIndex(uint32 index) { m_index = index; }
-			inline uint32 GetIndex(void) { return m_index; }
-			inline const char* GetName(void) { return m_name; }
-			inline const char* GetAbbr(void) { return m_abbr; }
-			inline const char* GetHelp(void) { return m_help; }
-			inline uint32 GetFlags(void) { return m_flags; }
+			inline uint32 GetIndex(void) const { return m_index; }
+			inline const char* GetName(void) const { return m_name; }
+			inline const char* GetAbbr(void) const { return m_abbr; }
+			inline const char* GetHelp(void) const { return m_help; }
+			inline uint32 GetFlags(void) const { return m_flags; }
 
 			virtual bool ParseName(const char* arg, const uint32 index) = 0;
 			virtual bool ParseAbbr(const char arg, const uint32 index) = 0;
@@ -75,12 +75,11 @@ namespace CommandLine
 			uint32 m_index; // index into original command line
 		};
 
+	protected:
 		class CSwitch : public CParameter
 		{
 		public:
-			typedef std::function<void(CSwitch*)> callback;
-
-			CSwitch(const char* name, const char* abbr, const char* help = "", uint32 flags = 0, callback function = nullptr)
+			CSwitch(const char* name, const char* abbr, const char* help, uint32 flags, callback function)
 				: CParameter(name, abbr, help, flags | CParameter::eF_SWITCH)
 				, m_function(function)
 				, m_recurrence(0)
@@ -98,7 +97,7 @@ namespace CommandLine
 #endif // (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
 			}
 
-			inline operator bool()
+			inline operator bool() const
 			{
 				return m_value;
 			}
@@ -140,8 +139,8 @@ namespace CommandLine
 
 			inline void Register(const uint32 index)
 			{
-				++m_recurrence;
 				SetIndex(index);
+				++m_recurrence;
 				m_value = true;
 				if (m_function)
 				{
@@ -150,15 +149,13 @@ namespace CommandLine
 			}
 		};
 
+	public:
 		CParser(int argc, const char* const* argv, const char* description, const char* version, const char* separator = " ")
 			: m_argv(argv)
 			, m_argc(argc)
 			, m_description(description)
 			, m_version(version)
 			, m_separator(separator)
-			, m_stopParsing("ignore-rest", "-", "Stop parsing command line arguments following this flag")
-			, m_displayHelp("help", "h", "Displays usage information", 0, [this](CSwitch* pSwitch) { this->Help(); })
-			, m_displayVersion("version", "v", "Displays version information", 0, [this](CSwitch* pSwitch) { this->Version(); })
 			, m_argi(0)
 			, m_argf(0)
 		{
@@ -167,16 +164,60 @@ namespace CommandLine
 #endif // (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
 
 			m_parameter.reserve(32);
-			m_parameter.push_back(&m_stopParsing);
-			m_parameter.push_back(&m_displayHelp);
-			m_parameter.push_back(&m_displayVersion);
+			// N.B. ignore-rest *must* be the first parameter added (see GetStopParsingSwitch() below)
+			AddSwitch("ignore-rest", "-", "Stop parsing command line arguments following this flag");
+			AddSwitch("help", "h", "Displays usage information", 0, [this](CParameter* pSwitch) { this->Help(); });
+			AddSwitch("version", "v", "Displays version information", 0, [this](CParameter* pSwitch) { this->Version(); });
 		}
 
 		~CParser()
 		{
+			for (CParameter* pParameter : m_parameter)
+			{
+				delete pParameter;
+			}
+
 #if (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
 			std::cout << "CParser destructed" << std::endl;
 #endif // (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
+		}
+
+		bool IsDuplicate(const char* name, const char* abbr) const
+		{
+			bool duplicate = false;
+			for (const CParameter* pParameter : m_parameter)
+			{
+				if (strcmp(abbr, pParameter->GetAbbr()) == 0)
+				{
+#if (LOG_VERBOSITY >= eLB_NORMAL)
+					std::cout << "Duplicate abbreviation [-" << abbr << "] detected when trying to add [--" << name << "]:[-" << abbr << "]" << std::endl;
+#endif // (LOG_VERBOSITY >= eLB_NORMAL)
+					duplicate = true;
+					break;
+				}
+				if (strcmp(name, pParameter->GetName()) == 0)
+				{
+#if (LOG_VERBOSITY >= eLB_NORMAL)
+					std::cout << "Duplicate name [--" << name << "] detected when trying to add [--" << name << "]:[-" << abbr << "]" << std::endl;
+#endif // (LOG_VERBOSITY >= eLB_NORMAL)
+					duplicate = true;
+					break;
+				}
+			}
+
+			return duplicate;
+		}
+
+		bool AddSwitch(const char* name, const char* abbr, const char* help = "", uint32 flags = 0, CSwitch::callback function = nullptr)
+		{
+			bool duplicate = IsDuplicate(name, abbr);
+
+			if (!duplicate)
+			{
+				m_parameter.push_back(new CSwitch(name, abbr, help, flags, function));
+			}
+
+			return !duplicate;
 		}
 
 		bool Parse(void)
@@ -184,11 +225,12 @@ namespace CommandLine
 			const char* arg = nullptr;
 			bool parsed = false;
 
+			const CSwitch* pStopParsing = GetStopParsingSwitch();
 			while (arg = GetNextArgument())
 			{
 				if (IsFlagArgument())
 				{
-					for (m_argf = 1; (!m_stopParsing) && (m_argf < strlen(arg)); ++m_argf)
+					for (m_argf = 1; (!*pStopParsing) && (m_argf < strlen(arg)); ++m_argf)
 					{
 						parsed = false;
 						for (CParameter* pParameter : m_parameter)
@@ -231,17 +273,17 @@ namespace CommandLine
 		{
 			std::experimental::filesystem::path executable(m_argv[0]);
 			std::cout << "Usage:" << std::endl << executable.filename();
-			for (CParameter* pArg : m_parameter)
+			for (const CParameter* pParameter : m_parameter)
 			{
-				bool optional = (pArg->GetFlags() & CParameter::eF_REQUIRED) == 0;
-				std::cout << m_separator << (optional ? "[" : "") << "-" << pArg->GetAbbr() << (optional ? "]" : "");
+				bool optional = (pParameter->GetFlags() & CParameter::eF_REQUIRED) == 0;
+				std::cout << m_separator << (optional ? "[" : "") << "-" << pParameter->GetAbbr() << (optional ? "]" : "");
 			}
 			std::cout << std::endl << std::endl << "Where:" << std::endl;
-			for (CParameter* pArg : m_parameter)
+			for (const CParameter* pParameter : m_parameter)
 			{
-				bool required = (pArg->GetFlags() & CParameter::eF_REQUIRED) != 0;
-				std::cout << "-" << pArg->GetAbbr() << "," << m_separator << "--" << pArg->GetName() << std::endl;
-				std::cout << m_separator << (required ? "(required)" : "") << pArg->GetHelp() << std::endl << std::endl;
+				bool required = (pParameter->GetFlags() & CParameter::eF_REQUIRED) != 0;
+				std::cout << "-" << pParameter->GetAbbr() << "," << m_separator << "--" << pParameter->GetName() << std::endl;
+				std::cout << m_separator << (required ? "(required)" : "") << pParameter->GetHelp() << std::endl << std::endl;
 			}
 			Version();
 			std::cout << std::endl << "Description:" << std::endl << m_description << std::endl;
@@ -257,7 +299,7 @@ namespace CommandLine
 		bool HaveAllRequiredParameters(void) const
 		{
 			// Check for required parameters
-			for (CParameter* pParameter : m_parameter)
+			for (const CParameter* pParameter : m_parameter)
 			{
 				if (
 					((pParameter->GetFlags() & CParameter::eF_REQUIRED) == CParameter::eF_REQUIRED) &&
@@ -272,6 +314,8 @@ namespace CommandLine
 			return true;
 		}
 
+		const CSwitch* GetStopParsingSwitch(void) const { return static_cast<CSwitch*>(m_parameter[0]); }
+
 	private:
 		std::vector<uint32> m_unnamed; // stores indices of unnamed arguments
 		std::vector<CParameter*> m_parameter;
@@ -280,9 +324,6 @@ namespace CommandLine
 		const char* m_version; // stores the version of this command
 		const char* m_separator; // stores the separator used in formatting help and version
 		const uint32 m_argc; // stores the argument count as passed to the program
-		CSwitch m_stopParsing;
-		CSwitch m_displayHelp;
-		CSwitch m_displayVersion;
 		mutable uint32 m_argi; // stores the index into m_argv of the argument being processed
 		uint32 m_argf; // stores the index into m_argv[m_argi] of the flag being processed
 	};
