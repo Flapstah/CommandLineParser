@@ -47,15 +47,15 @@ namespace CommandLine
 			inline void SetIndex(uint32 index) { m_index = index; }
 			inline uint32 GetIndex(void) const { return m_index; }
 			inline const char* GetName(void) const { return m_name; }
-			inline const char* GetAbbr(void) const { return m_abbr; }
+			inline char GetAbbr(void) const { return m_abbr; }
 			inline const char* GetHelp(void) const { return m_help; }
 			inline uint32 GetFlags(void) const { return m_flags; }
 
 			virtual bool ParseName(const char* arg, const uint32 index) = 0;
-			virtual bool ParseAbbr(const char arg, const uint32 index) = 0;
+			virtual bool ParseAbbr(char arg, const uint32 index) = 0;
 
 		protected:
-			CParameter(const char* name, const char* abbr, const char* help, uint32 flags)
+			CParameter(const char* name, char abbr, const char* help, uint32 flags)
 				: m_name(name)
 				, m_abbr(abbr)
 				, m_help(help)
@@ -69,7 +69,7 @@ namespace CommandLine
 
 		private:
 			const char* m_name;
-			const char* m_abbr;
+			const char m_abbr;
 			const char* m_help;
 			uint32 m_flags;
 			uint32 m_index; // index into original command line
@@ -79,7 +79,7 @@ namespace CommandLine
 		class CSwitch : public CParameter
 		{
 		public:
-			CSwitch(const char* name, const char* abbr, const char* help, uint32 flags, callback function)
+			CSwitch(const char* name, char abbr, const char* help, uint32 flags, callback function)
 				: CParameter(name, abbr, help, flags | CParameter::eF_SWITCH)
 				, m_function(function)
 				, m_recurrence(0)
@@ -116,10 +116,10 @@ namespace CommandLine
 				return false;
 			}
 
-			virtual bool ParseAbbr(const char arg, const uint32 index) override
+			virtual bool ParseAbbr(char arg, const uint32 index) override
 			{
 				// TODO: utf-8
-				if (GetAbbr()[0] == arg)
+				if (GetAbbr() == arg)
 				{
 #if (LOG_VERBOSITY >= eLB_VERBOSE)
 					std::cout << "Found [" << GetAbbr() << "] (" << GetName() << ")" << std::endl;
@@ -165,9 +165,9 @@ namespace CommandLine
 
 			m_parameter.reserve(32);
 			// N.B. ignore-rest *must* be the first parameter added (see GetStopParsingSwitch() below)
-			AddSwitch("ignore-rest", "-", "Stop parsing command line arguments following this flag");
-			AddSwitch("help", "h", "Displays usage information", 0, [this](CParameter* pSwitch) { this->Help(); });
-			AddSwitch("version", "v", "Displays version information", 0, [this](CParameter* pSwitch) { this->Version(); });
+			AddSwitch("ignore-rest", '-', "Stop parsing command line arguments following this flag");
+			AddSwitch("help", 'h', "Displays usage information", 0, [this](CParameter* pSwitch) { this->Help(); });
+			AddSwitch("version", 'v', "Displays version information", 0, [this](CParameter* pSwitch) { this->Version(); });
 		}
 
 		~CParser()
@@ -182,12 +182,12 @@ namespace CommandLine
 #endif // (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
 		}
 
-		bool IsDuplicate(const char* name, const char* abbr) const
+		bool IsDuplicate(const char* name, char abbr) const
 		{
 			bool duplicate = false;
 			for (const CParameter* pParameter : m_parameter)
 			{
-				if (strcmp(abbr, pParameter->GetAbbr()) == 0)
+				if (abbr == pParameter->GetAbbr())
 				{
 #if (LOG_VERBOSITY >= eLB_NORMAL)
 					std::cout << "Duplicate abbreviation [-" << abbr << "] detected when trying to add [--" << name << "]:[-" << abbr << "]" << std::endl;
@@ -208,7 +208,7 @@ namespace CommandLine
 			return duplicate;
 		}
 
-		bool AddSwitch(const char* name, const char* abbr, const char* help = "", uint32 flags = 0, CSwitch::callback function = nullptr)
+		bool AddSwitch(const char* name, char abbr, const char* help = "", uint32 flags = 0, CSwitch::callback function = nullptr)
 		{
 			bool duplicate = IsDuplicate(name, abbr);
 
