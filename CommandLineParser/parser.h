@@ -18,7 +18,7 @@ namespace CommandLine
 {
 	class CParser
 	{
-	public:
+	protected:
 		class CParameterBase
 		{
 		public:
@@ -51,7 +51,7 @@ namespace CommandLine
 			inline const char* GetHelp(void) const { return m_help; }
 			inline uint32 GetFlags(void) const { return m_flags; }
 
-			virtual bool ParseName(const char* arg, const uint32 index)
+			bool ParseName(const char* arg, const uint32 index)
 			{
 				if (strcmp(GetName(), arg) == 0)
 				{
@@ -65,7 +65,7 @@ namespace CommandLine
 				return false;
 			}
 
-			virtual bool ParseAbbr(char arg, const uint32 index)
+			bool ParseAbbr(char arg, const uint32 index)
 			{
 				// TODO: utf-8
 				if (GetAbbr() == arg)
@@ -118,8 +118,8 @@ namespace CommandLine
 			const char m_abbr;
 		};
 
-	protected:
-		template<typename _T>
+	public:
+		template<typename T>
 		class CParameter : public CParameterBase
 		{
 		public:
@@ -139,9 +139,14 @@ namespace CommandLine
 			}
 
 		protected:
+			void Register(const uint32 index)
+			{
+				// TODO: Need to walk the command line for additional arguments. Might need to have a pointer to the parser here...
+				__super::Register(index);
+			}
 
 		private:
-			std::vector<_T> m_values;
+			std::vector<T> m_values;
 		};
 
 		// template specialisation for bool (switch)
@@ -165,9 +170,10 @@ namespace CommandLine
 #endif // (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
 			}
 
-			void Register(const uint32 index) { m_value = true; __super::Register(index); }
-
 			operator bool() const { return m_value; }
+
+		protected:
+			void Register(const uint32 index) { m_value = true; __super::Register(index); }
 
 		private:
 			bool m_value;
@@ -232,16 +238,18 @@ namespace CommandLine
 			return duplicate;
 		}
 
-		bool AddSwitch(const char* name, char abbr, const char* help = "", uint32 flags = 0, CParameterBase::callback function = nullptr)
+		size_t AddSwitch(const char* name, char abbr, const char* help = "", uint32 flags = 0, CParameterBase::callback function = nullptr)
 		{
+			size_t index = m_parameter.size();
 			bool duplicate = IsDuplicate(name, abbr);
 
 			if (!duplicate)
 			{
+
 				m_parameter.push_back(new CParameter<bool>(name, abbr, help, flags, function));
 			}
 
-			return !duplicate;
+			return (!duplicate) ? index : -1;
 		}
 
 		bool Parse(void)
