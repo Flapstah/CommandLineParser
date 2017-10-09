@@ -19,10 +19,10 @@ namespace CommandLine
 	class CParser
 	{
 	public:
-		class CParameter
+		class CParameterBase
 		{
 		public:
-			typedef std::function<void(CParameter*)> callback;
+			typedef std::function<void(CParameterBase*)> callback;
 
 			enum eFlags
 			{
@@ -37,10 +37,10 @@ namespace CommandLine
 				eC_INVALID_INDEX = std::numeric_limits<uint32>::max()
 			};
 
-			virtual ~CParameter()
+			virtual ~CParameterBase()
 			{
 #if (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
-				std::cout << "CParameter [" << GetName() << "] destructed" << std::endl;
+				std::cout << "CParameterBase [" << GetName() << "] destructed" << std::endl;
 #endif // (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
 			};
 
@@ -81,7 +81,7 @@ namespace CommandLine
 			}
 
 		protected:
-			CParameter(const char* name, char abbr, const char* help, uint32 flags, callback function)
+			CParameterBase(const char* name, char abbr, const char* help, uint32 flags, callback function)
 				: m_function(function)
 				, m_recurrence(0)
 				, m_name(name)
@@ -91,7 +91,7 @@ namespace CommandLine
 				, m_abbr(abbr)
 			{
 #if (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
-				std::cout << "CParameter [" << GetName() << "] constructed" << std::endl;
+				std::cout << "CParameterBase [" << GetName() << "] constructed" << std::endl;
 #endif // (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
 			}
 
@@ -99,7 +99,7 @@ namespace CommandLine
 			{
 				SetIndex(index);
 				++m_recurrence;
-				m_flags |= CParameter::eF_FOUND;
+				m_flags |= CParameterBase::eF_FOUND;
 				if (m_function)
 				{
 					m_function(this);
@@ -120,21 +120,21 @@ namespace CommandLine
 
 	protected:
 		template<typename _T>
-		class CArgument : public CParameter
+		class CParameter : public CParameterBase
 		{
 		public:
-			CArgument(const char* name, char abbr, const char* help, uint32 flags, callback function)
-				: CParameter(name, abbr, help, flags, function)
+			CParameter(const char* name, char abbr, const char* help, uint32 flags, callback function)
+				: CParameterBase(name, abbr, help, flags, function)
 			{
 #if (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
-				std::cout << "CArgument [" << GetName() << "] constructed" << std::endl;
+				std::cout << "CParameter [" << GetName() << "] constructed" << std::endl;
 #endif // (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
 			}
 
-			virtual ~CArgument()
+			virtual ~CParameter()
 			{
 #if (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
-				std::cout << "CArgument [" << GetName() << "] destructed" << std::endl;
+				std::cout << "CParameter [" << GetName() << "] destructed" << std::endl;
 #endif // (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
 			}
 
@@ -146,22 +146,22 @@ namespace CommandLine
 
 		// template specialisation for bool (switch)
 		template<>
-		class CArgument<bool> : public CParameter
+		class CParameter<bool> : public CParameterBase
 		{
 		public:
-			CArgument(const char* name, char abbr, const char* help, uint32 flags, callback function)
-				: CParameter(name, abbr, help, flags | CParameter::eF_SWITCH, function)
+			CParameter(const char* name, char abbr, const char* help, uint32 flags, callback function)
+				: CParameterBase(name, abbr, help, flags | CParameterBase::eF_SWITCH, function)
 				, m_value(false)
 			{
 #if (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
-				std::cout << "CArgument<bool> [" << GetName() << "] constructed (switch)" << std::endl;
+				std::cout << "CParameter<bool> [" << GetName() << "] constructed (switch)" << std::endl;
 #endif // (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
 			}
 
-			virtual ~CArgument()
+			virtual ~CParameter()
 			{
 #if (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
-				std::cout << "CArgument<bool> [" << GetName() << "] destructed (switch)" << std::endl;
+				std::cout << "CParameter<bool> [" << GetName() << "] destructed (switch)" << std::endl;
 #endif // (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
 			}
 
@@ -190,13 +190,13 @@ namespace CommandLine
 			m_parameter.reserve(32);
 			// N.B. ignore-rest *must* be the first parameter added (see GetStopParsingSwitch() below)
 			AddSwitch("ignore-rest", '-', "Stop parsing command line arguments following this flag");
-			AddSwitch("help", 'h', "Displays usage information", 0, [this](CParameter* pSwitch) { this->Help(); });
-			AddSwitch("version", 'v', "Displays version information", 0, [this](CParameter* pSwitch) { this->Version(); });
+			AddSwitch("help", 'h', "Displays usage information", 0, [this](CParameterBase* pSwitch) { this->Help(); });
+			AddSwitch("version", 'v', "Displays version information", 0, [this](CParameterBase* pSwitch) { this->Version(); });
 		}
 
 		~CParser()
 		{
-			for (CParameter* pParameter : m_parameter)
+			for (CParameterBase* pParameter : m_parameter)
 			{
 				delete pParameter;
 			}
@@ -209,7 +209,7 @@ namespace CommandLine
 		bool IsDuplicate(const char* name, char abbr) const
 		{
 			bool duplicate = false;
-			for (const CParameter* pParameter : m_parameter)
+			for (const CParameterBase* pParameter : m_parameter)
 			{
 				if (abbr == pParameter->GetAbbr())
 				{
@@ -232,13 +232,13 @@ namespace CommandLine
 			return duplicate;
 		}
 
-		bool AddSwitch(const char* name, char abbr, const char* help = "", uint32 flags = 0, CParameter::callback function = nullptr)
+		bool AddSwitch(const char* name, char abbr, const char* help = "", uint32 flags = 0, CParameterBase::callback function = nullptr)
 		{
 			bool duplicate = IsDuplicate(name, abbr);
 
 			if (!duplicate)
 			{
-				m_parameter.push_back(new CArgument<bool>(name, abbr, help, flags, function));
+				m_parameter.push_back(new CParameter<bool>(name, abbr, help, flags, function));
 			}
 
 			return !duplicate;
@@ -249,7 +249,7 @@ namespace CommandLine
 			const char* arg = nullptr;
 			bool parsed = false;
 
-			const CArgument<bool>* pStopParsing = GetStopParsingSwitch();
+			const CParameter<bool>* pStopParsing = GetStopParsingSwitch();
 			while (arg = GetNextArgument())
 			{
 				if (IsFlagArgument())
@@ -257,7 +257,7 @@ namespace CommandLine
 					for (m_argf = 1; (!*pStopParsing) && (m_argf < strlen(arg)); ++m_argf)
 					{
 						parsed = false;
-						for (CParameter* pParameter : m_parameter)
+						for (CParameterBase* pParameter : m_parameter)
 						{
 							if (parsed = pParameter->ParseAbbr(arg[m_argf], GetArgumentIndex())) break;
 						}
@@ -272,7 +272,7 @@ namespace CommandLine
 				else if (IsNamedArgument())
 				{
 					parsed = false;
-					for (CParameter* pParameter : m_parameter)
+					for (CParameterBase* pParameter : m_parameter)
 					{
 						if (parsed = pParameter->ParseName(&arg[2], GetArgumentIndex())) break;
 					}
@@ -297,15 +297,15 @@ namespace CommandLine
 		{
 			std::experimental::filesystem::path executable(m_argv[0]);
 			std::cout << "Usage:" << std::endl << executable.filename();
-			for (const CParameter* pParameter : m_parameter)
+			for (const CParameterBase* pParameter : m_parameter)
 			{
-				bool optional = (pParameter->GetFlags() & CParameter::eF_REQUIRED) == 0;
+				bool optional = (pParameter->GetFlags() & CParameterBase::eF_REQUIRED) == 0;
 				std::cout << m_separator << (optional ? "[" : "") << "-" << pParameter->GetAbbr() << (optional ? "]" : "");
 			}
 			std::cout << std::endl << std::endl << "Where:" << std::endl;
-			for (const CParameter* pParameter : m_parameter)
+			for (const CParameterBase* pParameter : m_parameter)
 			{
-				bool required = (pParameter->GetFlags() & CParameter::eF_REQUIRED) != 0;
+				bool required = (pParameter->GetFlags() & CParameterBase::eF_REQUIRED) != 0;
 				std::cout << "-" << pParameter->GetAbbr() << "," << m_separator << "--" << pParameter->GetName() << std::endl;
 				std::cout << m_separator << (required ? "(required)" : "") << pParameter->GetHelp() << std::endl << std::endl;
 			}
@@ -323,11 +323,11 @@ namespace CommandLine
 		bool HaveAllRequiredParameters(void) const
 		{
 			// Check for required parameters
-			for (const CParameter* pParameter : m_parameter)
+			for (const CParameterBase* pParameter : m_parameter)
 			{
 				if (
-					((pParameter->GetFlags() & CParameter::eF_REQUIRED) == CParameter::eF_REQUIRED) &&
-					(pParameter->GetIndex() == CParameter::eC_INVALID_INDEX)
+					((pParameter->GetFlags() & CParameterBase::eF_REQUIRED) == CParameterBase::eF_REQUIRED) &&
+					(pParameter->GetIndex() == CParameterBase::eC_INVALID_INDEX)
 					)
 				{
 					std::cerr << "Required argument [-" << pParameter->GetAbbr() << "," << m_separator << "--" << pParameter->GetName() << "]" << std::endl;
@@ -338,11 +338,11 @@ namespace CommandLine
 			return true;
 		}
 
-		const CArgument<bool>* GetStopParsingSwitch(void) const { return static_cast<CArgument<bool>*>(m_parameter[0]); }
+		const CParameter<bool>* GetStopParsingSwitch(void) const { return static_cast<CParameter<bool>*>(m_parameter[0]); }
 
 	private:
 		std::vector<uint32> m_unnamed; // stores indices of unnamed arguments
-		std::vector<CParameter*> m_parameter;
+		std::vector<CParameterBase*> m_parameter;
 		const char* const* m_argv; // stores arguments as passed on the command line to the program
 		const char* m_description; // stores a description of this command
 		const char* m_version; // stores the version of this command
