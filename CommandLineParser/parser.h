@@ -81,8 +81,9 @@ namespace CommandLine
 			}
 
 		protected:
-			CParameterBase(const char* name, char abbr, const char* help, uint32 flags, callback function)
-				: m_function(function)
+			CParameterBase(CParser& parser, const char* name, char abbr, const char* help, uint32 flags, callback function)
+				: m_parser(parser)
+				, m_function(function)
 				, m_recurrence(0)
 				, m_name(name)
 				, m_help(help)
@@ -111,6 +112,7 @@ namespace CommandLine
 			uint32 m_recurrence;
 
 		private:
+			CParser& m_parser;
 			const char* m_name;
 			const char* m_help;
 			uint32 m_flags;
@@ -123,8 +125,8 @@ namespace CommandLine
 		class CParameter : public CParameterBase
 		{
 		public:
-			CParameter(const char* name, char abbr, const char* help, uint32 flags, callback function)
-				: CParameterBase(name, abbr, help, flags, function)
+			CParameter(CParser& parser, const char* name, char abbr, const char* help, uint32 flags, callback function)
+				: CParameterBase(parser, name, abbr, help, flags, function)
 			{
 #if (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
 				std::cout << "CParameter [" << GetName() << "] constructed" << std::endl;
@@ -138,10 +140,28 @@ namespace CommandLine
 #endif // (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
 			}
 
+			size_t GetNumValues(void) const { return m_values.size(); }
+			const T& GetValue(size_t index = 0) const { return (index < GetNumValues()) ? m_values[index] : T(); }
+
 		protected:
 			void Register(const uint32 index)
 			{
-				// TODO: Need to walk the command line for additional arguments. Might need to have a pointer to the parser here...
+				const char* arg = nullptr;
+
+				while (arg = PeekNextArgument())
+				{
+					if (IsFlagArgument() || IsNamedArgument())
+					{
+						// TODO: error checking (have we actually parsed any values)
+						break;
+					}
+					else
+					{
+						// TODO: stream value from string
+					}
+
+					GetNextArgument();
+				}
 				__super::Register(index);
 			}
 
@@ -154,8 +174,8 @@ namespace CommandLine
 		class CParameter<bool> : public CParameterBase
 		{
 		public:
-			CParameter(const char* name, char abbr, const char* help, uint32 flags, callback function)
-				: CParameterBase(name, abbr, help, flags | CParameterBase::eF_SWITCH, function)
+			CParameter(CParser& parser, const char* name, char abbr, const char* help, uint32 flags, callback function)
+				: CParameterBase(parser, name, abbr, help, flags | CParameterBase::eF_SWITCH, function)
 				, m_value(false)
 			{
 #if (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
@@ -171,6 +191,8 @@ namespace CommandLine
 			}
 
 			operator bool() const { return m_value; }
+			size_t GetNumValues(void) const { return 1; }
+			const bool& GetValue(void) const { return m_value; }
 
 		protected:
 			void Register(const uint32 index) { m_value = true; __super::Register(index); }
@@ -238,18 +260,18 @@ namespace CommandLine
 			return duplicate;
 		}
 
-		size_t AddSwitch(const char* name, char abbr, const char* help = "", uint32 flags = 0, CParameterBase::callback function = nullptr)
+		const CParameter<bool>* AddSwitch(const char* name, char abbr, const char* help = "", uint32 flags = 0, CParameterBase::callback function = nullptr)
 		{
-			size_t index = m_parameter.size();
 			bool duplicate = IsDuplicate(name, abbr);
+			CParameter<bool>* pSwitch = nullptr;
 
 			if (!duplicate)
 			{
-
-				m_parameter.push_back(new CParameter<bool>(name, abbr, help, flags, function));
+				pSwitch = new CParameter<bool>(*this, name, abbr, help, flags, function);
+				m_parameter.push_back(pSwitch);
 			}
 
-			return (!duplicate) ? index : -1;
+			return pSwitch;
 		}
 
 		bool Parse(void)
@@ -324,6 +346,7 @@ namespace CommandLine
 		inline void Version(void) const { std::cout << "Version" << m_separator << "[" << m_version << "]" << std::endl; }
 		inline uint32 GetArgumentIndex(void) const { return m_argi; }
 		inline const char* GetNextArgument(void) const { return ((m_argi + 1) < m_argc) ? m_argv[++m_argi] : nullptr; }
+		inline const char* PeekNextArgument(void) const { return ((m_argi + 1) < m_argc) ? m_argv[m_argi + 1] : nullptr; }
 		inline bool IsFlagArgument(void) const { return (m_argv[m_argi][0] == '-') && ((m_argv[m_argi][1] != '-') || (strlen(m_argv[m_argi]) == 2)); }
 		inline bool IsNamedArgument(void) const { return (m_argv[m_argi][0] == '-') && (m_argv[m_argi][1] == '-') && (strlen(m_argv[m_argi]) > 2); }
 
