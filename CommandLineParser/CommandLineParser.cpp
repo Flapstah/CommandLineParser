@@ -13,6 +13,7 @@ int main(int argc, char* argv[])
 	int test_argc = sizeof(test_argv) / sizeof(char*);
 
 	CommandLine::CParser parser(test_argc, test_argv, "Test command", "0.1");
+	const CommandLine::CParser::CParameter<float>* arg = parser.AddArgument<float>("test", 't', "test argument");
 	std::cout << ((parser.Parse()) ? "succeeded" : "failed") << std::endl;
 	return 0;
 }

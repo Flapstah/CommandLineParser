@@ -4,15 +4,13 @@
 #include <experimental/filesystem>
 #include <functional>
 #include <limits>
+#include <typeinfo>
 
-enum ELogVerbosity
-{
-	eLB_NORMAL,
-	eLB_VERBOSE,
-	eLB_VERY_VERBOSE,
-};
+#define LOG_NORMAL 0
+#define LOG_VERBOSE 1
+#define LOG_VERY_VERBOSE 2
 
-#define LOG_VERBOSITY eLB_VERY_VERBOSE
+#define LOG_VERBOSITY LOG_NORMAL 
 
 namespace CommandLine
 {
@@ -39,9 +37,9 @@ namespace CommandLine
 
 			virtual ~CParameterBase()
 			{
-#if (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
+#if (LOG_VERBOSITY >= LOG_VERY_VERBOSE)
 				std::cout << "CParameterBase [" << GetName() << "] destructed" << std::endl;
-#endif // (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
+#endif // (LOG_VERBOSITY >= LOG_VERY_VERBOSE)
 			};
 
 			inline void SetIndex(uint32 index) { m_index = index; }
@@ -55,9 +53,9 @@ namespace CommandLine
 			{
 				if (strcmp(GetName(), arg) == 0)
 				{
-#if (LOG_VERBOSITY >= eLB_VERBOSE)
+#if (LOG_VERBOSITY >= LOG_VERBOSE)
 					std::cout << "Found [" << GetName() << "]" << std::endl;
-#endif // (LOG_VERBOSITY >= eLB_VERBOSE)
+#endif // (LOG_VERBOSITY >= LOG_VERBOSE)
 					Register(index);
 					return true;
 				}
@@ -70,9 +68,9 @@ namespace CommandLine
 				// TODO: utf-8
 				if (GetAbbr() == arg)
 				{
-#if (LOG_VERBOSITY >= eLB_VERBOSE)
+#if (LOG_VERBOSITY >= LOG_VERBOSE)
 					std::cout << "Found [" << GetAbbr() << "] (" << GetName() << ")" << std::endl;
-#endif // (LOG_VERBOSITY >= eLB_VERBOSE)
+#endif // (LOG_VERBOSITY >= LOG_VERBOSE)
 					Register(index);
 					return true;
 				}
@@ -91,9 +89,9 @@ namespace CommandLine
 				, m_index(eC_INVALID_INDEX)
 				, m_abbr(abbr)
 			{
-#if (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
+#if (LOG_VERBOSITY >= LOG_VERBOSE)
 				std::cout << "CParameterBase [" << GetName() << "] constructed" << std::endl;
-#endif // (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
+#endif // (LOG_VERBOSITY >= LOG_VERBOSE)
 			}
 
 			inline void Register(const uint32 index)
@@ -128,16 +126,16 @@ namespace CommandLine
 			CParameter(CParser& parser, const char* name, char abbr, const char* help, uint32 flags, callback function)
 				: CParameterBase(parser, name, abbr, help, flags, function)
 			{
-#if (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
-				std::cout << "CParameter [" << GetName() << "] constructed" << std::endl;
-#endif // (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
+#if (LOG_VERBOSITY >= LOG_VERBOSE)
+				std::cout << "CParameter<" << typeid(T).name() << "> [" << GetName() << "] constructed" << std::endl;
+#endif // (LOG_VERBOSITY >= LOG_VERBOSE)
 			}
 
 			virtual ~CParameter()
 			{
-#if (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
-				std::cout << "CParameter [" << GetName() << "] destructed" << std::endl;
-#endif // (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
+#if (LOG_VERBOSITY >= LOG_VERBOSE)
+				std::cout << "CParameter<T> [" << GetName() << "] destructed" << std::endl;
+#endif // (LOG_VERBOSITY >= LOG_VERBOSE)
 			}
 
 			size_t GetNumValues(void) const { return m_values.size(); }
@@ -165,9 +163,9 @@ namespace CommandLine
 						}
 						else
 						{
-#if (LOG_VERBOSITY >= eLB_NORMAL)
-							std::cout << "CParameter<T> [" << GetName() << "] unable to parse [" << arg << "] from input parameter [" << GetArgumentIndex() + 1 << "]" << std::endl;
-#endif // (LOG_VERBOSITY >= eLB_NORMAL)
+#if (LOG_VERBOSITY >= LOG_NORMAL)
+							std::cout << "CParameter<" << typeid(T).name() << "> [" << GetName() << "] unable to parse [" << arg << "] from input parameter [" << GetArgumentIndex() + 1 << "]" << std::endl;
+#endif // (LOG_VERBOSITY >= LOG_NORMAL)
 							std::exit(-2); // TODO: some better error codes
 						}
 					}
@@ -181,9 +179,9 @@ namespace CommandLine
 
 				if (m_values.size() == 0)
 				{
-#if (LOG_VERBOSITY >= eLB_NORMAL)
-					std::cout << "CParameter<T> [" << GetName() << "] does not appear to have values to parse from the command line when parsing input parameter [" << GetArgumentIndex() + 1 << "]" << std::endl;
-#endif // (LOG_VERBOSITY >= eLB_NORMAL)
+#if (LOG_VERBOSITY >= LOG_NORMAL)
+					std::cout << "CParameter<" << typeid(T).name() << "> [" << GetName() << "] does not appear to have values to parse from the command line when parsing input parameter [" << GetArgumentIndex() + 1 << "]" << std::endl;
+#endif // (LOG_VERBOSITY >= LOG_NORMAL)
 					std::exit(-1); // TODO: some better error codes
 				}
 
@@ -203,16 +201,16 @@ namespace CommandLine
 				: CParameterBase(parser, name, abbr, help, flags | CParameterBase::eF_SWITCH, function)
 				, m_value(false)
 			{
-#if (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
+#if (LOG_VERBOSITY >= LOG_VERBOSE)
 				std::cout << "CParameter<bool> [" << GetName() << "] constructed (switch)" << std::endl;
-#endif // (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
+#endif // (LOG_VERBOSITY >= LOG_VERBOSE)
 			}
 
 			virtual ~CParameter()
 			{
-#if (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
+#if (LOG_VERBOSITY >= LOG_VERBOSE)
 				std::cout << "CParameter<bool> [" << GetName() << "] destructed (switch)" << std::endl;
-#endif // (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
+#endif // (LOG_VERBOSITY >= LOG_VERBOSE)
 			}
 
 			operator bool() const { return m_value; }
@@ -236,9 +234,9 @@ namespace CommandLine
 			, m_argi(0)
 			, m_argf(0)
 		{
-#if (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
+#if (LOG_VERBOSITY >= LOG_VERBOSE)
 			std::cout << "CParser constructed" << std::endl;
-#endif // (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
+#endif // (LOG_VERBOSITY >= LOG_VERBOSE)
 
 			m_parameter.reserve(32);
 			m_stopParsing = AddSwitch("ignore-rest", '-', "Stop parsing command line arguments following this flag");
@@ -253,11 +251,12 @@ namespace CommandLine
 				delete pParameter;
 			}
 
-#if (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
+#if (LOG_VERBOSITY >= LOG_VERBOSE)
 			std::cout << "CParser destructed" << std::endl;
-#endif // (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
+#endif // (LOG_VERBOSITY >= LOG_VERBOSE)
 		}
 
+		protected:
 		bool IsDuplicate(const char* name, char abbr) const
 		{
 			bool duplicate = false;
@@ -265,17 +264,17 @@ namespace CommandLine
 			{
 				if (abbr == pParameter->GetAbbr())
 				{
-#if (LOG_VERBOSITY >= eLB_NORMAL)
+#if (LOG_VERBOSITY >= LOG_NORMAL)
 					std::cout << "Duplicate abbreviation [-" << abbr << "] detected when trying to add [--" << name << "]:[-" << abbr << "]" << std::endl;
-#endif // (LOG_VERBOSITY >= eLB_NORMAL)
+#endif // (LOG_VERBOSITY >= LOG_NORMAL)
 					duplicate = true;
 					break;
 				}
 				if (strcmp(name, pParameter->GetName()) == 0)
 				{
-#if (LOG_VERBOSITY >= eLB_NORMAL)
+#if (LOG_VERBOSITY >= LOG_NORMAL)
 					std::cout << "Duplicate name [--" << name << "] detected when trying to add [--" << name << "]:[-" << abbr << "]" << std::endl;
-#endif // (LOG_VERBOSITY >= eLB_NORMAL)
+#endif // (LOG_VERBOSITY >= LOG_NORMAL)
 					duplicate = true;
 					break;
 				}
@@ -284,19 +283,27 @@ namespace CommandLine
 			return duplicate;
 		}
 
-		const CParameter<bool>* AddSwitch(const char* name, char abbr, const char* help = "", uint32 flags = 0, CParameterBase::callback function = nullptr)
+		public:
+		template <typename T>
+		const CParameter<T>* AddArgument(const char* name, char abbr, const char* help = "", uint32 flags = 0, CParameterBase::callback function = nullptr)
 		{
 			bool duplicate = IsDuplicate(name, abbr);
-			CParameter<bool>* pSwitch = nullptr;
+			CParameter<T>* pArgument = nullptr;
 
 			if (!duplicate)
 			{
-				pSwitch = new CParameter<bool>(*this, name, abbr, help, flags, function);
-				m_parameter.push_back(pSwitch);
+				pArgument = new CParameter<T>(*this, name, abbr, help, flags, function);
+				m_parameter.push_back(pArgument);
 			}
 
-			return pSwitch;
+			return pArgument;
 		}
+
+		const CParameter<bool>* AddSwitch(const char* name, char abbr, const char* help = "", uint32 flags = 0, CParameterBase::callback function = nullptr)
+		{
+			return AddArgument<bool>(name, abbr, help, flags, function);
+		}
+
 
 		bool Parse(void)
 		{
@@ -367,13 +374,13 @@ namespace CommandLine
 		}
 
 		inline void Version(void) const { std::cout << "Version" << m_separator << "[" << m_version << "]" << std::endl; }
+
+		protected:
 		inline uint32 GetArgumentIndex(void) const { return m_argi; }
 		inline const char* GetNextArgument(void) const { return ((m_argi + 1) < m_argc) ? m_argv[++m_argi] : nullptr; }
 		inline const char* PeekNextArgument(void) const { return ((m_argi + 1) < m_argc) ? m_argv[m_argi + 1] : nullptr; }
 		inline bool IsFlagArgument(void) const { return (m_argv[m_argi][0] == '-') && ((m_argv[m_argi][1] != '-') || (strlen(m_argv[m_argi]) == 2)); }
 		inline bool IsNamedArgument(void) const { return (m_argv[m_argi][0] == '-') && (m_argv[m_argi][1] == '-') && (strlen(m_argv[m_argi]) > 2); }
-
-	protected:
 		bool HaveAllRequiredParameters(void) const
 		{
 			// Check for required parameters
