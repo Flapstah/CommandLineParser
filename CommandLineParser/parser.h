@@ -152,16 +152,41 @@ namespace CommandLine
 				{
 					if (IsFlagArgument() || IsNamedArgument())
 					{
-						// TODO: error checking (have we actually parsed any values)
 						break;
 					}
 					else
 					{
-						// TODO: stream value from string
+						std::istringstream iss(arg);
+						T value;
+						iss >> value;
+						if (!iss.fail() && ss.eof())
+						{
+							m_values.push_back(std::move(value));
+						}
+						else
+						{
+#if (LOG_VERBOSITY >= eLB_NORMAL)
+							std::cout << "CParameter<T> [" << GetName() << "] unable to parse [" << arg << "] from input parameter [" << GetArgumentIndex() + 1 << "]" << std::endl;
+#endif // (LOG_VERBOSITY >= eLB_NORMAL)
+							std::exit(-2); // TODO: some better error codes
+						}
 					}
 
+					// This argument has now been processed, so skip it
 					GetNextArgument();
+
+					// If a single value, break here
+					if ((GetFlags() & eF_MULTIPLE_VALUES) == 0) break;
 				}
+
+				if (m_values.size() == 0)
+				{
+#if (LOG_VERBOSITY >= eLB_NORMAL)
+					std::cout << "CParameter<T> [" << GetName() << "] does not appear to have values to parse from the command line when parsing input parameter [" << GetArgumentIndex() + 1 << "]" << std::endl;
+#endif // (LOG_VERBOSITY >= eLB_NORMAL)
+					std::exit(-1); // TODO: some better error codes
+				}
+
 				__super::Register(index);
 			}
 
