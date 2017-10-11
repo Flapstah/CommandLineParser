@@ -241,8 +241,7 @@ namespace CommandLine
 #endif // (LOG_VERBOSITY >= eLB_VERY_VERBOSE)
 
 			m_parameter.reserve(32);
-			// N.B. ignore-rest *must* be the first parameter added (see GetStopParsingSwitch() below)
-			AddSwitch("ignore-rest", '-', "Stop parsing command line arguments following this flag");
+			m_stopParsing = AddSwitch("ignore-rest", '-', "Stop parsing command line arguments following this flag");
 			AddSwitch("help", 'h', "Displays usage information", 0, [this](CParameterBase* pSwitch) { this->Help(); });
 			AddSwitch("version", 'v', "Displays version information", 0, [this](CParameterBase* pSwitch) { this->Version(); });
 		}
@@ -304,12 +303,11 @@ namespace CommandLine
 			const char* arg = nullptr;
 			bool parsed = false;
 
-			const CParameter<bool>* pStopParsing = GetStopParsingSwitch();
 			while (arg = GetNextArgument())
 			{
 				if (IsFlagArgument())
 				{
-					for (m_argf = 1; (!*pStopParsing) && (m_argf < strlen(arg)); ++m_argf)
+					for (m_argf = 1; (!*m_stopParsing) && (m_argf < strlen(arg)); ++m_argf)
 					{
 						parsed = false;
 						for (CParameterBase* pParameter : m_parameter)
@@ -394,11 +392,10 @@ namespace CommandLine
 			return true;
 		}
 
-		const CParameter<bool>* GetStopParsingSwitch(void) const { return static_cast<CParameter<bool>*>(m_parameter[0]); }
-
 	private:
 		std::vector<uint32> m_unnamed; // stores indices of unnamed arguments
 		std::vector<CParameterBase*> m_parameter;
+		const CParameter<bool>* m_stopParsing;
 		const char* const* m_argv; // stores arguments as passed on the command line to the program
 		const char* m_description; // stores a description of this command
 		const char* m_version; // stores the version of this command
