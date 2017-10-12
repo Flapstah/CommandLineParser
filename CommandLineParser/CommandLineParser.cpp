@@ -8,13 +8,15 @@ int main(int argc, char* argv[])
 {
 	char* test_argv[] = {
 		"test.exe",
-		"--help"
+		"--test", "123", "456",
+		"--other"
 	};
 	int test_argc = sizeof(test_argv) / sizeof(char*);
 
 	CommandLine::CParser parser(test_argc, test_argv, "Test command", "0.1");
-	const CommandLine::CParser::CParameter<float>* arg = parser.AddArgument<float>("test", 't', "test argument");
+	const CommandLine::CParser::CParameter<int>* arg = parser.AddArgument<int>("test", 't', "test argument", CommandLine::CParser::eF_MULTIPLE_VALUES);
 	std::cout << ((parser.Parse()) ? "succeeded" : "failed") << std::endl;
+	std::cout << "arg [" << arg->GetValue() << "]" << std::endl;
 	return 0;
 }
 
