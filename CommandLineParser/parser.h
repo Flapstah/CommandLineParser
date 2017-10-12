@@ -18,24 +18,25 @@ namespace CommandLine
 {
 	class CParser
 	{
+	public:
+		enum eFlags
+		{
+			eF_REQUIRED = 1 << 0,					// Failure to provide this argument/switch is an error
+			eF_SWITCH = 1 << 1,						// Switch style argument; no parameters collected.  Non-switch arguments collect one parameter.
+			eF_MULTIPLE_VALUES = 1 << 2,	// Greedy collection of parameters until the next switch/argument, or end of command line
+			eF_FOUND = 1 << 3,						// Indicates this argument was found on the command line
+		};
+
+		enum eConstants
+		{
+			eC_INVALID_INDEX = std::numeric_limits<uint32>::max()
+		};
+
 	protected:
 		class CParameterBase
 		{
 		public:
 			typedef std::function<void(CParameterBase*)> callback;
-
-			enum eFlags
-			{
-				eF_REQUIRED = 1 << 0,					// Failure to provide this argument/switch is an error
-				eF_SWITCH = 1 << 1,						// Switch style argument; no parameters collected.  Non-switch arguments collect one parameter.
-				eF_MULTIPLE_VALUES = 1 << 2,	// Greedy collection of parameters until the next switch/argument, or end of command line
-				eF_FOUND = 1 << 3,						// Indicates this argument was found on the command line
-			};
-
-			enum eConstants
-			{
-				eC_INVALID_INDEX = std::numeric_limits<uint32>::max()
-			};
 
 			virtual ~CParameterBase()
 			{
@@ -101,7 +102,7 @@ namespace CommandLine
 			{
 				SetIndex(index);
 				++m_recurrence;
-				m_flags |= CParameterBase::eF_FOUND;
+				m_flags |= CParser::eF_FOUND;
 				if (m_function)
 				{
 					m_function(this);
@@ -176,7 +177,7 @@ namespace CommandLine
 					}
 
 					// If a single value, break here
-					if ((GetFlags() & eF_MULTIPLE_VALUES) == 0) break;
+					if ((GetFlags() & CParser::eF_MULTIPLE_VALUES) == 0) break;
 				}
 
 				if (m_values.size() == 0)
@@ -200,7 +201,7 @@ namespace CommandLine
 		{
 		public:
 			CParameter(CParser& parser, const char* name, char abbr, const char* help, uint32 flags, callback function)
-				: CParameterBase(parser, name, abbr, help, flags | CParameterBase::eF_SWITCH, function)
+				: CParameterBase(parser, name, abbr, help, flags | CParser::eF_SWITCH, function)
 				, m_value(false)
 			{
 #if (LOG_VERBOSITY >= LOG_VERBOSE)
@@ -361,13 +362,13 @@ namespace CommandLine
 			std::cout << "Usage:" << std::endl << executable.filename();
 			for (const CParameterBase* pParameter : m_parameter)
 			{
-				bool optional = (pParameter->GetFlags() & CParameterBase::eF_REQUIRED) == 0;
+				bool optional = (pParameter->GetFlags() & CParser::eF_REQUIRED) == 0;
 				std::cout << m_separator << (optional ? "[" : "") << "-" << pParameter->GetAbbr() << (optional ? "]" : "");
 			}
 			std::cout << std::endl << std::endl << "Where:" << std::endl;
 			for (const CParameterBase* pParameter : m_parameter)
 			{
-				bool required = (pParameter->GetFlags() & CParameterBase::eF_REQUIRED) != 0;
+				bool required = (pParameter->GetFlags() & CParser::eF_REQUIRED) != 0;
 				std::cout << "-" << pParameter->GetAbbr() << "," << m_separator << "--" << pParameter->GetName() << std::endl;
 				std::cout << m_separator << (required ? "(required)" : "") << pParameter->GetHelp() << std::endl << std::endl;
 			}
@@ -389,8 +390,8 @@ namespace CommandLine
 			for (const CParameterBase* pParameter : m_parameter)
 			{
 				if (
-					((pParameter->GetFlags() & CParameterBase::eF_REQUIRED) == CParameterBase::eF_REQUIRED) &&
-					(pParameter->GetIndex() == CParameterBase::eC_INVALID_INDEX)
+					((pParameter->GetFlags() & CParser::eF_REQUIRED) == CParser::eF_REQUIRED) &&
+					(pParameter->GetIndex() == CParser::eC_INVALID_INDEX)
 					)
 				{
 					std::cerr << "Required argument [-" << pParameter->GetAbbr() << "," << m_separator << "--" << pParameter->GetName() << "]" << std::endl;
