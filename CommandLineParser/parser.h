@@ -141,7 +141,7 @@ namespace CommandLine
 			virtual ~CArgument()
 			{
 #if (LOG_VERBOSITY >= LOG_VERBOSE)
-				std::cout << "CParameter<T> [" << GetName() << "] destructed" << std::endl;
+				std::cout << "CParameter<" << typeid(T).name() << "> [" << GetName() << "] destructed" << std::endl;
 #endif // (LOG_VERBOSITY >= LOG_VERBOSE)
 			}
 
