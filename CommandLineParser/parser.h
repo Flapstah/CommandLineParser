@@ -200,6 +200,66 @@ namespace CommandLine
 			std::vector<T> m_values;
 		};
 
+		// template specialisation for char*
+		template<>
+		class CArgument<char*> : public CArgumentBase
+		{
+		public:
+			CArgument(CParser& parser, const char* name, char abbr, const char* help, uint32 flags, callback function)
+				: CArgumentBase(parser, name, abbr, help, flags, function)
+			{
+#if (LOG_VERBOSITY >= LOG_VERBOSE)
+				std::cout << "CParameter<char*> [" << GetName() << "] constructed" << std::endl;
+#endif // (LOG_VERBOSITY >= LOG_VERBOSE)
+			}
+
+			virtual ~CArgument()
+			{
+#if (LOG_VERBOSITY >= LOG_VERBOSE)
+				std::cout << "CParameter<char*> [" << GetName() << "] destructed" << std::endl;
+#endif // (LOG_VERBOSITY >= LOG_VERBOSE)
+			}
+
+			size_t GetNumValues(void) const { return m_index.size(); }
+			const char* GetValue(size_t index = 0) const { return (index < GetNumValues()) ? GetParser().GetArgument(m_index[index]) : nullptr; }
+
+		protected:
+			virtual void Register(const uint32 index)
+			{
+				const char* arg = nullptr;
+				CParser& parser = GetParser();
+
+				while (arg = parser.GetNextArgument())
+				{
+					if (parser.IsFlagArgument() || parser.IsNamedArgument())
+					{
+						parser.GetPreviousArgument();
+						break;
+					}
+					else
+					{
+						m_index.push_back(parser.GetArgumentIndex());
+					}
+
+					// If a single value, break here
+					if ((GetFlags() & CParser::eF_MULTIPLE_VALUES) == 0) break;
+				}
+
+				if (m_index.size() == 0)
+				{
+#if (LOG_VERBOSITY >= LOG_NORMAL)
+					std::cout << "CParameter<char*> [" << GetName() << "] does not appear to have values to parse from the command line when parsing input parameter [#" << parser.GetArgumentIndex() << "]" << std::endl;
+#endif // (LOG_VERBOSITY >= LOG_NORMAL)
+					std::exit(-1); // TODO: some better error codes
+				}
+
+				__super::Register(index);
+			}
+
+		private:
+			std::vector<uint32> m_index;
+		};
+
 		// template specialisation for bool (switch)
 		template<>
 		class CArgument<bool> : public CArgumentBase
@@ -386,6 +446,7 @@ namespace CommandLine
 		inline uint32 GetArgumentIndex(void) const { return m_argi; }
 		inline const char* GetNextArgument(void) const { return ((m_argi + 1) < m_argc) ? m_argv[++m_argi] : nullptr; }
 		inline const char* GetPreviousArgument(void) const { return ((m_argi - 1) >= 0) ? m_argv[--m_argi] : nullptr; }
+		inline const char* GetArgument(uint32 index) { return (index < m_argc) ? m_argv[index] : nullptr; }
 		inline bool IsFlagArgument(void) const { return (m_argv[m_argi][0] == '-') && ((m_argv[m_argi][1] != '-') || (strlen(m_argv[m_argi]) == 2)); }
 		inline bool IsNamedArgument(void) const { return (m_argv[m_argi][0] == '-') && (m_argv[m_argi][1] == '-') && (strlen(m_argv[m_argi]) > 2); }
 		bool HaveAllRequiredParameters(void) const
