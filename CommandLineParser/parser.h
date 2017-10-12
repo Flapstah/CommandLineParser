@@ -14,6 +14,9 @@
 
 #define LOG_VERBOSITY LOG_NORMAL 
 
+// TODO: expose unparsed arguments
+// TODO: fix error handling
+
 namespace CommandLine
 {
 	class CParser
@@ -306,7 +309,6 @@ namespace CommandLine
 		{
 			return AddArgument<bool>(name, abbr, help, flags, function);
 		}
-
 
 		bool Parse(void)
 		{
