@@ -164,6 +164,8 @@ namespace CommandLine
 					else
 					{
 						std::istringstream iss(arg);
+						// make it locale independent
+						iss.imbue(std::locale::classic());
 						T value;
 						iss >> value;
 						if (!iss.fail() && iss.eof())
