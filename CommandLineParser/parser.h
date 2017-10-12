@@ -1,6 +1,8 @@
 #pragma once
 #include <vector>
 #include <iostream>
+#include <string>
+#include <sstream>
 #include <experimental/filesystem>
 #include <functional>
 #include <limits>
@@ -42,6 +44,7 @@ namespace CommandLine
 #endif // (LOG_VERBOSITY >= LOG_VERY_VERBOSE)
 			};
 
+			inline CParser& GetParser(void) const { return m_parser; }
 			inline void SetIndex(uint32 index) { m_index = index; }
 			inline uint32 GetIndex(void) const { return m_index; }
 			inline const char* GetName(void) const { return m_name; }
@@ -94,7 +97,7 @@ namespace CommandLine
 #endif // (LOG_VERBOSITY >= LOG_VERBOSE)
 			}
 
-			inline void Register(const uint32 index)
+			virtual void Register(const uint32 index)
 			{
 				SetIndex(index);
 				++m_recurrence;
@@ -139,17 +142,19 @@ namespace CommandLine
 			}
 
 			size_t GetNumValues(void) const { return m_values.size(); }
-			const T& GetValue(size_t index = 0) const { return (index < GetNumValues()) ? m_values[index] : T(); }
+			const T GetValue(size_t index = 0) const { return (index < GetNumValues()) ? m_values[index] : T(); }
 
 		protected:
-			void Register(const uint32 index)
+			virtual void Register(const uint32 index)
 			{
 				const char* arg = nullptr;
+				CParser& parser = GetParser();
 
-				while (arg = PeekNextArgument())
+				while (arg = parser.GetNextArgument())
 				{
-					if (IsFlagArgument() || IsNamedArgument())
+					if (parser.IsFlagArgument() || parser.IsNamedArgument())
 					{
+						parser.GetPreviousArgument();
 						break;
 					}
 					else
@@ -157,21 +162,18 @@ namespace CommandLine
 						std::istringstream iss(arg);
 						T value;
 						iss >> value;
-						if (!iss.fail() && ss.eof())
+						if (!iss.fail() && iss.eof())
 						{
 							m_values.push_back(std::move(value));
 						}
 						else
 						{
 #if (LOG_VERBOSITY >= LOG_NORMAL)
-							std::cout << "CParameter<" << typeid(T).name() << "> [" << GetName() << "] unable to parse [" << arg << "] from input parameter [" << GetArgumentIndex() + 1 << "]" << std::endl;
+							std::cout << "CParameter<" << typeid(T).name() << "> unable to parse [" << arg << "] as [" << typeid(T).name() << "] for input parameter [" << GetName() << "], at index [#" << parser.GetArgumentIndex() << "]" << std::endl;
 #endif // (LOG_VERBOSITY >= LOG_NORMAL)
 							std::exit(-2); // TODO: some better error codes
 						}
 					}
-
-					// This argument has now been processed, so skip it
-					GetNextArgument();
 
 					// If a single value, break here
 					if ((GetFlags() & eF_MULTIPLE_VALUES) == 0) break;
@@ -180,7 +182,7 @@ namespace CommandLine
 				if (m_values.size() == 0)
 				{
 #if (LOG_VERBOSITY >= LOG_NORMAL)
-					std::cout << "CParameter<" << typeid(T).name() << "> [" << GetName() << "] does not appear to have values to parse from the command line when parsing input parameter [" << GetArgumentIndex() + 1 << "]" << std::endl;
+					std::cout << "CParameter<" << typeid(T).name() << "> [" << GetName() << "] does not appear to have values to parse from the command line when parsing input parameter [#" << parser.GetArgumentIndex() << "]" << std::endl;
 #endif // (LOG_VERBOSITY >= LOG_NORMAL)
 					std::exit(-1); // TODO: some better error codes
 				}
@@ -218,7 +220,7 @@ namespace CommandLine
 			const bool& GetValue(void) const { return m_value; }
 
 		protected:
-			void Register(const uint32 index) { m_value = true; __super::Register(index); }
+			virtual void Register(const uint32 index) { m_value = true; __super::Register(index); }
 
 		private:
 			bool m_value;
@@ -378,7 +380,7 @@ namespace CommandLine
 		protected:
 		inline uint32 GetArgumentIndex(void) const { return m_argi; }
 		inline const char* GetNextArgument(void) const { return ((m_argi + 1) < m_argc) ? m_argv[++m_argi] : nullptr; }
-		inline const char* PeekNextArgument(void) const { return ((m_argi + 1) < m_argc) ? m_argv[m_argi + 1] : nullptr; }
+		inline const char* GetPreviousArgument(void) const { return ((m_argi - 1) >= 0) ? m_argv[--m_argi] : nullptr; }
 		inline bool IsFlagArgument(void) const { return (m_argv[m_argi][0] == '-') && ((m_argv[m_argi][1] != '-') || (strlen(m_argv[m_argi]) == 2)); }
 		inline bool IsNamedArgument(void) const { return (m_argv[m_argi][0] == '-') && (m_argv[m_argi][1] == '-') && (strlen(m_argv[m_argi]) > 2); }
 		bool HaveAllRequiredParameters(void) const
