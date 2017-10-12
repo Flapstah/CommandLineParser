@@ -9,7 +9,7 @@ int main(int argc, char* argv[])
 	char* test_argv[] = {
 		"test.exe",
 		"--test", "123", "456",
-		"--other"
+		"-xyz"
 	};
 	int test_argc = sizeof(test_argv) / sizeof(char*);
 

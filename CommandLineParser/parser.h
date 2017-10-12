@@ -329,7 +329,7 @@ namespace CommandLine
 
 						if (!parsed)
 						{
-							std::cerr << "Unknown argument encountered [" << arg[m_argf] << "] [#" << m_argf << "] in [#" << GetArgumentIndex() << "]:[" << arg << "]" << std::endl;
+							std::cerr << "Unknown flag [" << arg[m_argf] << "] at index [#" << m_argf << "] in [" << arg << "] at index [#" << GetArgumentIndex() << "]" << std::endl;
 							return false;
 						}
 					}
@@ -344,7 +344,7 @@ namespace CommandLine
 
 					if (!parsed)
 					{
-						std::cerr << "Unknown argument encountered [#" << GetArgumentIndex() << "]:[" << arg << "]" << std::endl;
+						std::cerr << "Unknown argument [" << arg << "] at index [#" << GetArgumentIndex() << "]" << std::endl;
 						return false;
 					}
 				}
