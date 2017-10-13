@@ -8,7 +8,9 @@ int main(int argc, char* argv[])
 {
 	char* test_argv[] = {
 		"test.exe",
-		"--test", "123", "456"
+		"--test", "123", "456",
+		"-v",
+		"--test", "789"
 	};
 	int test_argc = sizeof(test_argv) / sizeof(char*);
 
@@ -19,6 +21,7 @@ int main(int argc, char* argv[])
 	{
 		std::cout << "#" << i << " : [" << arg->GetValue(i) << "]" << std::endl;
 	}
+	std::cout << "times occurred: " << arg->GetTimesOccured() << std::endl;
 	return 0;
 }
 

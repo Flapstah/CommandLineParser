@@ -55,6 +55,7 @@ namespace CommandLine
 			inline char GetAbbr(void) const { return m_abbr; }
 			inline const char* GetHelp(void) const { return m_help; }
 			inline uint32 GetFlags(void) const { return m_flags; }
+			inline uint32 GetTimesOccured(void) const { return m_timesOccurred; }
 
 			bool ParseName(const char* arg, const uint32 index)
 			{
@@ -89,7 +90,7 @@ namespace CommandLine
 			CArgumentBase(CParser& parser, const char* name, char abbr, const char* help, uint32 flags, callback function)
 				: m_parser(parser)
 				, m_function(function)
-				, m_recurrence(0)
+				, m_timesOccurred(0)
 				, m_name(name)
 				, m_help(help)
 				, m_flags(flags)
@@ -104,7 +105,7 @@ namespace CommandLine
 			virtual void Register(const uint32 index)
 			{
 				SetIndex(index);
-				++m_recurrence;
+				++m_timesOccurred;
 				m_flags |= CParser::eF_FOUND;
 				if (m_function)
 				{
@@ -114,7 +115,7 @@ namespace CommandLine
 
 		protected:
 			callback m_function;
-			uint32 m_recurrence;
+			uint32 m_timesOccurred;
 
 		private:
 			CParser& m_parser;
