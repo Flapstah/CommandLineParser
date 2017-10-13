@@ -8,9 +8,8 @@ int main(int argc, char* argv[])
 {
 	char* test_argv[] = {
 		"test.exe",
-		"--test", "123", "456",
-		"-v",
-		"--test", "789"
+		"file1", "file2", "file3",
+		"destination"
 	};
 	int test_argc = sizeof(test_argv) / sizeof(char*);
 
@@ -22,6 +21,13 @@ int main(int argc, char* argv[])
 		std::cout << "#" << i << " : [" << arg->GetValue(i) << "]" << std::endl;
 	}
 	std::cout << "times occurred: " << arg->GetTimesOccured() << std::endl;
+
+	uint32 count = parser.GetUnparsedArgumentCount();
+	for (uint32 index = 0; index <= count; ++index)
+	{
+		std::cout << "unparsed #" << index << ": [" << parser.GetUnparsedArgument(index) << "]" << std::endl;
+	}
+
 	return 0;
 }
 
