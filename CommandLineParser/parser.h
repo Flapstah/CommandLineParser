@@ -14,7 +14,6 @@
 
 #define LOG_VERBOSITY LOG_NORMAL 
 
-// TODO: expose unparsed arguments
 // TODO: fix error handling
 
 namespace CommandLine
@@ -414,7 +413,7 @@ namespace CommandLine
 				else
 				{
 					// This is an unnamed parameter
-					m_unnamed.push_back(GetArgumentIndex());
+					m_unparsed.push_back(GetArgumentIndex());
 				}
 			}
 
@@ -443,6 +442,9 @@ namespace CommandLine
 
 		inline void Version(void) const { std::cout << "Version" << m_separator << "[" << m_version << "]" << std::endl; }
 
+		inline uint32 GetUnparsedArgumentCount(void) const { return m_unparsed.size(); }
+		inline const char* GetUnparsedArgument(uint32 index) const { return (index < m_argc) ? m_argv[index] : nullptr; }
+
 		protected:
 		inline uint32 GetArgumentIndex(void) const { return m_argi; }
 		inline const char* GetNextArgument(void) const { return ((m_argi + 1) < m_argc) ? m_argv[++m_argi] : nullptr; }
@@ -469,7 +471,7 @@ namespace CommandLine
 		}
 
 	private:
-		std::vector<uint32> m_unnamed; // stores indices of unnamed arguments
+		std::vector<uint32> m_unparsed; // stores indices of unparsed arguments
 		std::vector<CArgumentBase*> m_parameter;
 		const CArgument<bool>* m_stopParsing;
 		const char* const* m_argv; // stores arguments as passed on the command line to the program
