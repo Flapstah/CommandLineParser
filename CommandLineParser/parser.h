@@ -26,12 +26,11 @@ namespace CommandLine
 			eF_REQUIRED = 1 << 0,					// Failure to provide this argument/switch is an error
 			eF_SWITCH = 1 << 1,						// Switch style argument; no parameters collected.  Non-switch arguments collect one parameter.
 			eF_MULTIPLE_VALUES = 1 << 2,	// Greedy collection of parameters until the next switch/argument, or end of command line
-			eF_FOUND = 1 << 3,						// Indicates this argument was found on the command line
 		};
 
 		enum eConstants
 		{
-			eC_INVALID_INDEX = std::numeric_limits<uint32>::max()
+			eC_INVALID_INDEX = std::numeric_limits<size_t>::max()
 		};
 
 	protected:
@@ -48,15 +47,15 @@ namespace CommandLine
 			};
 
 			inline CParser& GetParser(void) const { return m_parser; }
-			inline void SetIndex(uint32 index) { m_index = index; }
-			inline uint32 GetIndex(void) const { return m_index; }
+			inline void SetIndex(size_t index) { m_index = index; }
+			inline size_t GetIndex(void) const { return m_index; }
 			inline const char* GetName(void) const { return m_name; }
 			inline char GetAbbr(void) const { return m_abbr; }
 			inline const char* GetHelp(void) const { return m_help; }
 			inline uint32 GetFlags(void) const { return m_flags; }
-			inline uint32 GetTimesOccured(void) const { return m_timesOccurred; }
+			inline size_t GetTimesOccured(void) const { return m_timesOccurred; }
 
-			bool ParseName(const char* arg, const uint32 index)
+			bool ParseName(const char* arg, const size_t index)
 			{
 				if (strcmp(GetName(), arg) == 0)
 				{
@@ -70,7 +69,7 @@ namespace CommandLine
 				return false;
 			}
 
-			bool ParseAbbr(char arg, const uint32 index)
+			bool ParseAbbr(char arg, const size_t index)
 			{
 				// TODO: utf-8
 				if (GetAbbr() == arg)
@@ -101,11 +100,10 @@ namespace CommandLine
 #endif // (LOG_VERBOSITY >= LOG_VERBOSE)
 			}
 
-			virtual void Register(const uint32 index)
+			virtual void Register(const size_t index)
 			{
 				SetIndex(index);
 				++m_timesOccurred;
-				m_flags |= CParser::eF_FOUND;
 				if (m_function)
 				{
 					m_function(this);
@@ -121,7 +119,7 @@ namespace CommandLine
 			const char* m_name;
 			const char* m_help;
 			uint32 m_flags;
-			uint32 m_index; // index into original command line
+			size_t m_index; // index into original command line
 			const char m_abbr;
 		};
 
@@ -149,7 +147,7 @@ namespace CommandLine
 			const T GetValue(size_t index = 0) const { return (index < GetNumValues()) ? m_values[index] : T(); }
 
 		protected:
-			virtual void Register(const uint32 index)
+			virtual void Register(const size_t index)
 			{
 				const char* arg = nullptr;
 				CParser& parser = GetParser();
@@ -224,7 +222,7 @@ namespace CommandLine
 			const char* GetValue(size_t index = 0) const { return (index < GetNumValues()) ? GetParser().GetArgument(m_index[index]) : nullptr; }
 
 		protected:
-			virtual void Register(const uint32 index)
+			virtual void Register(const size_t index)
 			{
 				const char* arg = nullptr;
 				CParser& parser = GetParser();
@@ -257,7 +255,7 @@ namespace CommandLine
 			}
 
 		private:
-			std::vector<uint32> m_index;
+			std::vector<size_t> m_index;
 		};
 
 		// template specialisation for bool (switch)
@@ -286,7 +284,7 @@ namespace CommandLine
 			const bool& GetValue(void) const { return m_value; }
 
 		protected:
-			virtual void Register(const uint32 index) { m_value = true; __super::Register(index); }
+			virtual void Register(const size_t index) { m_value = true; __super::Register(index); }
 
 		private:
 			bool m_value;
@@ -442,14 +440,14 @@ namespace CommandLine
 
 		inline void Version(void) const { std::cout << "Version" << m_separator << "[" << m_version << "]" << std::endl; }
 
-		inline uint32 GetUnparsedArgumentCount(void) const { return m_unparsed.size(); }
-		inline const char* GetUnparsedArgument(uint32 index) const { return (index < m_argc) ? m_argv[index] : nullptr; }
+		inline size_t GetUnparsedArgumentCount(void) const { return m_unparsed.size(); }
+		inline const char* GetUnparsedArgument(size_t index) const { return (index < GetUnparsedArgumentCount()) ? m_argv[m_unparsed[index]] : nullptr; }
 
 		protected:
-		inline uint32 GetArgumentIndex(void) const { return m_argi; }
+		inline size_t GetArgumentIndex(void) const { return m_argi; }
 		inline const char* GetNextArgument(void) const { return ((m_argi + 1) < m_argc) ? m_argv[++m_argi] : nullptr; }
 		inline const char* GetPreviousArgument(void) const { return ((m_argi - 1) >= 0) ? m_argv[--m_argi] : nullptr; }
-		inline const char* GetArgument(uint32 index) { return (index < m_argc) ? m_argv[index] : nullptr; }
+		inline const char* GetArgument(size_t index) { return (index < m_argc) ? m_argv[index] : nullptr; }
 		inline bool IsFlagArgument(void) const { return (m_argv[m_argi][0] == '-') && ((m_argv[m_argi][1] != '-') || (strlen(m_argv[m_argi]) == 2)); }
 		inline bool IsNamedArgument(void) const { return (m_argv[m_argi][0] == '-') && (m_argv[m_argi][1] == '-') && (strlen(m_argv[m_argi]) > 2); }
 		bool HaveAllRequiredParameters(void) const
@@ -471,15 +469,15 @@ namespace CommandLine
 		}
 
 	private:
-		std::vector<uint32> m_unparsed; // stores indices of unparsed arguments
+		std::vector<size_t> m_unparsed; // stores indices of unparsed arguments
 		std::vector<CArgumentBase*> m_parameter;
 		const CArgument<bool>* m_stopParsing;
 		const char* const* m_argv; // stores arguments as passed on the command line to the program
 		const char* m_description; // stores a description of this command
 		const char* m_version; // stores the version of this command
 		const char* m_separator; // stores the separator used in formatting help and version
-		const uint32 m_argc; // stores the argument count as passed to the program
-		mutable uint32 m_argi; // stores the index into m_argv of the argument being processed
-		uint32 m_argf; // stores the index into m_argv[m_argi] of the flag being processed
+		const size_t m_argc; // stores the argument count as passed to the program
+		mutable size_t m_argi; // stores the index into m_argv of the argument being processed
+		size_t m_argf; // stores the index into m_argv[m_argi] of the flag being processed
 	};
 }
